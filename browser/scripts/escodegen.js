@@ -97,6 +97,8 @@
         FunctionExpression: 'FunctionExpression',
         Identifier: 'Identifier',
         IfStatement: 'IfStatement',
+        ImportDeclaration: 'ImportDeclaration',
+        ImportDeclarator: 'ImportDeclarator',
         Literal: 'Literal',
         LabeledStatement: 'LabeledStatement',
         LogicalExpression: 'LogicalExpression',
@@ -1170,6 +1172,10 @@
         return toSourceNode(result, expr);
     }
 
+    function generateImportStatement(node) {
+        return [node.id.name, ' from ', escapeString(node.from)];
+    }
+
     function generateModuleStatement(node) {
         return [node.id.name, ' from ', escapeString(node.from)];
     }
@@ -1300,6 +1306,33 @@
             } else {
                 result = stmt.id.name;
             }
+            break;
+
+        case Syntax.ImportDeclaration:
+            result = [stmt.kind];
+
+            // VariableDeclarator is typed as Statement,
+            // but joined with comma (not LineTerminator).
+            // So if comment is attached to target node, we should specialize.
+            withIndent(function () {
+                node = stmt.declarations[0];
+                if (extra.comment && node.leadingComments) {
+                    result.push('\n', generateImportStatement(node));
+                } else {
+                    result.push(' ', generateImportStatement(node));
+                }
+
+                for (i = 1, len = stmt.declarations.length; i < len; i += 1) {
+                    node = stmt.declarations[i];
+                    if (extra.comment && node.leadingComments) {
+                        result.push(',' + newline, generateImportStatement(node));
+                    } else {
+                        result.push(',' + space, generateImportStatement(node));
+                    }
+                }
+            });
+
+            result.push(semicolon);
             break;
 
         case Syntax.ModuleDeclaration:
@@ -1714,6 +1747,8 @@
         case Syntax.ForInStatement:
         case Syntax.FunctionDeclaration:
         case Syntax.IfStatement:
+        case Syntax.ImportDeclaration:
+        case Syntax.ImportDeclarator:
         case Syntax.LabeledStatement:
         case Syntax.ModuleDeclaration:
         case Syntax.ModuleDeclarator:
@@ -1793,6 +1828,8 @@
         FunctionExpression: ['id', 'params', 'body'],
         Identifier: [],
         IfStatement: ['test', 'consequent', 'alternate'],
+        ImportDeclaration: ['declarations'],
+        ImportDeclarator: ['id', 'from'],
         Literal: [],
         LabeledStatement: ['label', 'body'],
         LogicalExpression: ['left', 'right'],

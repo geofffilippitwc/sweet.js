@@ -130,6 +130,8 @@ to decide on the correct name for identifiers.
         FunctionExpression: 'FunctionExpression',
         Identifier: 'Identifier',
         IfStatement: 'IfStatement',
+        ImportDeclaration: 'ImportDeclaration',
+        ImportDeclarator: 'ImportDeclarator',
         Literal: 'Literal',
         LabeledStatement: 'LabeledStatement',
         LogicalExpression: 'LogicalExpression',
@@ -2259,6 +2261,80 @@ to decide on the correct name for identifiers.
         };
     }
 
+    // JRB: Import Statement
+
+    function parseImportIdentifier() {
+        var stx = lex(),
+            token = stx.token;
+
+        if (token.type !== Token.Identifier) {
+            throwUnexpected(token);
+        }
+        // note we are intentionally leaving the name as a
+        // syntax object under the noresolve flag, helps with
+        // finding variable idents in the expander
+        var name = (extra.noresolve) ? stx : expander.resolve(stx);
+        return {
+            type: Syntax.Identifier,
+            name: name
+        };
+    }
+
+    function parseImportDeclaration(kind) {
+        var stx, token, from,
+            id = parseImportIdentifier(),
+            init = null;
+
+        // 12.2.1
+        if (strict && isRestrictedWord(id.name)) {
+            throwErrorTolerant({}, Messages.StrictVarName);
+        }
+
+        expectKeyword('from');
+
+        stx = lex();
+        token = stx.token;
+        if (token.type !== Token.StringLiteral) {
+            throwUnexpected(token);
+        }
+        from = token.value;
+
+        return {
+            type: Syntax.ImportDeclarator,
+            id: id,
+            from: from
+        };
+    }
+
+    function parseImportDeclarationList(kind) {
+        var list = [];
+
+        while (index < length) {
+            list.push(parseImportDeclaration(kind));
+            if (!match(',')) {
+                break;
+            }
+            lex();
+        }
+
+        return list;
+    }
+
+    function parseImportStatement() {
+        var declarations;
+
+        expectKeyword('import');
+
+        declarations = parseImportDeclarationList();
+
+        consumeSemicolon();
+
+        return {
+            type: Syntax.ImportDeclaration,
+            declarations: declarations,
+            kind: 'import'
+        };
+    }
 
     // JRB: Module Statement
 
@@ -2943,6 +3019,8 @@ to decide on the correct name for identifiers.
                 return parseFunctionDeclaration();
             case 'if':
                 return parseIfStatement();
+            case 'import':
+                return parseImportStatement();
             case 'module':
                 return parseModuleStatement();
             case 'return':
@@ -3588,6 +3666,8 @@ to decide on the correct name for identifiers.
             extra.parseForVariableDeclaration = parseForVariableDeclaration;
             extra.parseFunctionDeclaration = parseFunctionDeclaration;
             extra.parseFunctionExpression = parseFunctionExpression;
+            extra.parseImportDeclaration = parseImportDeclaration;
+            extra.parseImportIdentifier = parseImportIdentifier;
             extra.parseLogicalANDExpression = parseLogicalANDExpression;
             extra.parseLogicalORExpression = parseLogicalORExpression;
             extra.parseModuleDeclaration = parseModuleDeclaration;
@@ -3627,6 +3707,8 @@ to decide on the correct name for identifiers.
             parseForVariableDeclaration = wrapTracking(extra.parseForVariableDeclaration);
             parseFunctionDeclaration = wrapTracking(extra.parseFunctionDeclaration);
             parseFunctionExpression = wrapTracking(extra.parseFunctionExpression);
+            parseImportDeclaration = wrapTracking(extra.parseImportDeclaration);
+            parseImportIdentifier = wrapTracking(extra.parseImportIdentifier);
             parseLogicalANDExpression = wrapTracking(extra.parseLogicalANDExpression);
             parseLogicalORExpression = wrapTracking(extra.parseLogicalORExpression);
             parseModuleDeclaration = wrapTracking(extra.parseModuleDeclaration);
@@ -3684,6 +3766,8 @@ to decide on the correct name for identifiers.
             parseEqualityExpression = extra.parseEqualityExpression;
             parseExpression = extra.parseExpression;
             parseForVariableDeclaration = extra.parseForVariableDeclaration;
+            parseImportDeclaration = extra.parseImportDeclaration;
+            parseImportIdentifier = extra.parseImportIdentifier;
             parseFunctionDeclaration = extra.parseFunctionDeclaration;
             parseFunctionExpression = extra.parseFunctionExpression;
             parseLogicalANDExpression = extra.parseLogicalANDExpression;
@@ -3944,6 +4028,7 @@ to decide on the correct name for identifiers.
                 "expr": parseAssignmentExpression,
                 "ident": parsePrimaryExpression,
                 "lit": parsePrimaryExpression,
+                "ImportDeclarationList": parseImportDeclarationList,
                 "LogicalANDExpression": parseLogicalANDExpression,
                 "PrimaryExpression": parsePrimaryExpression,
                 "ModuleDeclarationList": parseModuleDeclarationList,
@@ -3968,6 +4053,7 @@ to decide on the correct name for identifiers.
                 "TryStatement": parseTryStatement,
                 "WhileStatement": parseWhileStatement,
                 "ForStatement": parseForStatement,
+                "ImportDeclaration": parseImportDeclaration,
                 "ModuleDeclaration": parseModuleDeclaration,
                 "VariableDeclaration": parseVariableDeclaration,
                 "ArrayExpression": parseArrayInitialiser,
