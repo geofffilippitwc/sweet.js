@@ -90,6 +90,7 @@
         DoWhileStatement: 'DoWhileStatement',
         DebuggerStatement: 'DebuggerStatement',
         EmptyStatement: 'EmptyStatement',
+        ExportDeclaration: 'ExportDeclaration',
         ExpressionStatement: 'ExpressionStatement',
         ForStatement: 'ForStatement',
         ForInStatement: 'ForInStatement',
@@ -1362,6 +1363,27 @@
             result.push(semicolon);
             break;
 
+        case Syntax.ExportDeclaration:
+            result = [stmt.kind];
+
+            // VariableDeclarator is typed as Statement,
+            // but joined with comma (not LineTerminator).
+            // So if comment is attached to target node, we should specialize.
+            withIndent(function () {
+                node = stmt.statement;
+                if (extra.comment && node.leadingComments) {
+                    result.push('\n', generateModuleStatement(node, {
+                        allowIn: allowIn
+                    }));
+                } else {
+                    result.push(' ', generateStatement(node, {
+                        allowIn: allowIn
+                    }));
+                }
+            });
+
+            break;
+
         case Syntax.VariableDeclaration:
             result = [stmt.kind];
             // special path for
@@ -1742,6 +1764,7 @@
         case Syntax.DoWhileStatement:
         case Syntax.DebuggerStatement:
         case Syntax.EmptyStatement:
+        case Syntax.ExportDeclaration:
         case Syntax.ExpressionStatement:
         case Syntax.ForStatement:
         case Syntax.ForInStatement:
