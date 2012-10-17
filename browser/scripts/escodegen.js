@@ -101,6 +101,8 @@
         LabeledStatement: 'LabeledStatement',
         LogicalExpression: 'LogicalExpression',
         MemberExpression: 'MemberExpression',
+        ModuleDeclaration: 'ModuleDeclaration',
+        ModuleDeclarator: 'ModuleDeclarator',
         NewExpression: 'NewExpression',
         ObjectExpression: 'ObjectExpression',
         Program: 'Program',
@@ -1168,6 +1170,10 @@
         return toSourceNode(result, expr);
     }
 
+    function generateModuleStatement(node) {
+        return [node.id.name, ' from ', escapeString(node.from)];
+    }
+
     function generateStatement(stmt, option) {
         var i, len, result, node, allowIn, functionBody, directiveContext, fragment, semicolon;
 
@@ -1294,6 +1300,33 @@
             } else {
                 result = stmt.id.name;
             }
+            break;
+
+        case Syntax.ModuleDeclaration:
+            result = [stmt.kind];
+
+            // VariableDeclarator is typed as Statement,
+            // but joined with comma (not LineTerminator).
+            // So if comment is attached to target node, we should specialize.
+            withIndent(function () {
+                node = stmt.declarations[0];
+                if (extra.comment && node.leadingComments) {
+                    result.push('\n', generateModuleStatement(node));
+                } else {
+                    result.push(' ', generateModuleStatement(node));
+                }
+
+                for (i = 1, len = stmt.declarations.length; i < len; i += 1) {
+                    node = stmt.declarations[i];
+                    if (extra.comment && node.leadingComments) {
+                        result.push(',' + newline, generateModuleStatement(node));
+                    } else {
+                        result.push(',' + space, generateModuleStatement(node));
+                    }
+                }
+            });
+
+            result.push(semicolon);
             break;
 
         case Syntax.VariableDeclaration:
@@ -1682,6 +1715,8 @@
         case Syntax.FunctionDeclaration:
         case Syntax.IfStatement:
         case Syntax.LabeledStatement:
+        case Syntax.ModuleDeclaration:
+        case Syntax.ModuleDeclarator:
         case Syntax.Program:
         case Syntax.ReturnStatement:
         case Syntax.SwitchStatement:
@@ -1762,6 +1797,8 @@
         LabeledStatement: ['label', 'body'],
         LogicalExpression: ['left', 'right'],
         MemberExpression: ['object', 'property'],
+        ModuleDeclaration: ['declarations'],
+        ModuleDeclarator: ['id', 'from'],
         NewExpression: ['callee', 'arguments'],
         ObjectExpression: ['properties'],
         Program: ['body'],
